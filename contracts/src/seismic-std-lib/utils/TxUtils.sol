@@ -31,12 +31,12 @@ library TxUtils {
         return txType() == SEISMIC_TX_TYPE;
     }
 
-    /// @notice True when executing as an authenticated signed read (an RPC read), not a mined tx.
-    /// Implies {isSeismicTx}.
-    /// @dev NOT authorization: this authenticates the execution mode, not the caller — gate on
-    /// msg.sender/roles separately, never on this predicate alone. Not a confidentiality guarantee.
-    /// State is not committed to the canonical chain, but is visible to later calls in the same
-    /// multi-call simulation.
+    /// @notice True when the node classified this execution as an authenticated signed read (an RPC
+    /// read), not a mined tx. Implies {isSeismicTx}.
+    /// @dev This reports a node-established classification; the predicate itself neither authenticates
+    /// nor authorizes the caller — gate on msg.sender/roles separately, never on this alone. Not by
+    /// itself a confidentiality guarantee. State is not committed to the canonical chain, but is
+    /// visible to later calls in the same multi-call simulation.
     function isSignedRead() internal view returns (bool) {
         return _read(SIGNED_READ_SELECTOR) == 1;
     }

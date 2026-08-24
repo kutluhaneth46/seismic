@@ -71,4 +71,13 @@ contract TxUtilsTest is Test {
     function test_isSignedRead_defaultsFalse() public view {
         assertFalse(harness.isSignedRead());
     }
+
+    /// vm.signedRead(true) is only the raw flag: without a Seismic tx type the precompile normalizes
+    /// isSignedRead() to false (it implies isSeismicTx). vm.txType must be paired with it.
+    function test_isSignedRead_requiresSeismicTxType() public {
+        vmCtx.txType(2);
+        vmCtx.signedRead(true);
+        assertFalse(harness.isSignedRead());
+        assertFalse(harness.isSeismicTx());
+    }
 }
