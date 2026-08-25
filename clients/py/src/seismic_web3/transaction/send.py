@@ -371,7 +371,6 @@ def _raise_signed_rpc_error(
         try:
             decrypted = encryption.decrypt(
                 HexBytes(data),
-                metadata.seismic_elements.encryption_nonce,
                 metadata,
             )
             raise ContractLogicError(
@@ -850,7 +849,6 @@ def signed_call(
     result_bytes = HexBytes(raw_result)
     return encryption.decrypt(
         result_bytes,
-        metadata.seismic_elements.encryption_nonce,
         metadata,
     )
 
@@ -914,6 +912,5 @@ async def async_signed_call(
     result_bytes = HexBytes(raw_result)
     return encryption.decrypt(
         result_bytes,
-        metadata.seismic_elements.encryption_nonce,
         metadata,
     )

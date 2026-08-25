@@ -19,6 +19,12 @@ import {
   testTxExplorerUrlWithTab,
 } from '@sviem-tests/tests/explorerUrl.ts'
 import {
+  testSplitResponseIvAcceptsEmptyBody,
+  testSplitResponseIvRejectsShortResponse,
+  testSplitResponseIvRejectsUnknownVersion,
+  testSplitResponseIvSeparatesVersionIvAndBody,
+} from '@sviem-tests/tests/responseIv.ts'
+import {
   testSerializeMissingChainId,
   testSerializeMissingData,
   testSerializeMissingEncryptionNonce,
@@ -145,4 +151,19 @@ describe('Seismic EIP-712 typed data', () => {
     'includes authorizationListHash',
     testTypedDataIncludesAuthorizationListHash
   )
+})
+
+describe('signed-read response IV', () => {
+  test('separates the version, IV, and ciphertext body', () => {
+    testSplitResponseIvSeparatesVersionIvAndBody()
+  })
+  test('accepts a response with an empty body', () => {
+    testSplitResponseIvAcceptsEmptyBody()
+  })
+  test('rejects a response shorter than the IV', () => {
+    testSplitResponseIvRejectsShortResponse()
+  })
+  test('rejects an unknown format version', () => {
+    testSplitResponseIvRejectsUnknownVersion()
+  })
 })

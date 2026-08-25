@@ -115,6 +115,38 @@ export class AesGcmCrypto {
   }
 }
 
+/** Length of the IV the TEE prepends to a signed-read response. */
+export const RESPONSE_IV_LENGTH = 12
+
+/** Wire format version prefixing every non-empty signed-read response. */
+export const RESPONSE_FORMAT_VERSION = 1
+
+/**
+ * Splits a signed-read response of the form `version || iv || ciphertext || tag`.
+ * Rejects any version other than RESPONSE_FORMAT_VERSION rather than guessing a layout.
+ */
+export const splitResponseIv = (
+  response: Hex
+): { version: number; iv: Hex; body: Hex } => {
+  const bytes = hexToBytes(response)
+  if (bytes.length < 1 + RESPONSE_IV_LENGTH) {
+    throw new Error(
+      `signed-read response is ${bytes.length} bytes, too short to carry a version byte and a ${RESPONSE_IV_LENGTH}-byte IV`
+    )
+  }
+  const version = bytes[0]
+  if (version !== RESPONSE_FORMAT_VERSION) {
+    throw new Error(
+      `unsupported signed-read response format ${version}, expected ${RESPONSE_FORMAT_VERSION}`
+    )
+  }
+  return {
+    version,
+    iv: bytesToHex(bytes.slice(1, 1 + RESPONSE_IV_LENGTH)),
+    body: bytesToHex(bytes.slice(1 + RESPONSE_IV_LENGTH)),
+  }
+}
+
 type AesInputKeys = { privateKey: Hex; networkPublicKey: string }
 
 export const sharedSecretPoint = ({
