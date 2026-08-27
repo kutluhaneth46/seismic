@@ -37,6 +37,9 @@ library TxUtils {
     /// nor authorizes the caller — gate on msg.sender/roles separately, never on this alone. Not by
     /// itself a confidentiality guarantee. State is not committed to the canonical chain, but is
     /// visible to later calls in the same multi-call simulation.
+    /// @dev A false result is ambiguous: it is returned both for a mined Seismic write and for a
+    /// non-Seismic tx. To test for a mined Seismic write, pair it with {isSeismicTx}, e.g.
+    /// `isSeismicTx() && !isSignedRead()`.
     function isSignedRead() internal view returns (bool) {
         return _read(SIGNED_READ_SELECTOR) == 1;
     }
