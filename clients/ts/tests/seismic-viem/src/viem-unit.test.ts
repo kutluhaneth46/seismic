@@ -1,6 +1,10 @@
 import { describe, test } from 'bun:test'
 
 import {
+  testAesGcmDecryptPreservesLeadingNulPlaintext,
+  testAesGcmEncryptPreservesLeadingZeroBytes,
+} from '@sviem-tests/tests/aesPrecompileDecode.ts'
+import {
   testAddressExplorerUrlBuildsCorrectUrl,
   testAddressExplorerUrlReturnsNullWithoutExplorer,
   testAddressExplorerUrlWithTab,
@@ -144,5 +148,16 @@ describe('Seismic EIP-712 typed data', () => {
   test(
     'includes authorizationListHash',
     testTypedDataIncludesAuthorizationListHash
+  )
+})
+
+describe('AES-GCM precompile decode', () => {
+  test(
+    'encrypt preserves ciphertext with leading zero bytes',
+    testAesGcmEncryptPreservesLeadingZeroBytes
+  )
+  test(
+    'decrypt preserves plaintext with leading NUL bytes',
+    testAesGcmDecryptPreservesLeadingNulPlaintext
   )
 })
