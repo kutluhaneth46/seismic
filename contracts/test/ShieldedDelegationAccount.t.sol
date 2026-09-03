@@ -637,7 +637,7 @@ contract ShieldedDelegationAccountTest is Test, ShieldedDelegationAccount {
         // Grant a session
         vm.prank(ALICE_ADDRESS);
         ShieldedDelegationAccount(ALICE_ADDRESS).authorizeKey(
-            keyType, publicKey, uint40(block.timestamp + 24 hours), 1 ether
+            keyType, publicKey, uint40(block.timestamp + 24 hours), 5 ether
         );
 
         // Create token transfer call
@@ -676,7 +676,7 @@ contract ShieldedDelegationAccountTest is Test, ShieldedDelegationAccount {
         // Grant a session
         vm.prank(ALICE_ADDRESS);
         ShieldedDelegationAccount(ALICE_ADDRESS).authorizeKey(
-            KeyType.P256, publicKey, uint40(block.timestamp + 24 hours), 1 ether
+            KeyType.P256, publicKey, uint40(block.timestamp + 24 hours), 5 ether
         );
 
         // Create the token transfer call
@@ -1146,11 +1146,10 @@ contract ShieldedDelegationAccountTest is Test, ShieldedDelegationAccount {
         assertEq(pub2.publicKey, pub.publicKey, "should return same publicKey");
     }
 
-    /// @notice Test that spendLimit=0 blocks zero-value calls that carry no ETH
-    function test_zeroSpendLimitAllowsZeroValueCalls() public {
+    /// @notice Test that spendLimit=0 blocks ERC-20 transfers (zero ETH value)
+    function test_zeroSpendLimitBlocksTokenTransfers() public {
         (bytes memory publicKey, uint256 privateKey) = _randomSecp256k1Key();
 
-        // Grant session with 0 spend limit
         vm.prank(ALICE_ADDRESS);
         ShieldedDelegationAccount(ALICE_ADDRESS).authorizeKey(
             KeyType.Secp256k1, publicKey, uint40(block.timestamp + 24 hours), 0
@@ -1158,14 +1157,45 @@ contract ShieldedDelegationAccountTest is Test, ShieldedDelegationAccount {
 
         uint32 keyIndex = ShieldedDelegationAccount(ALICE_ADDRESS).getKeyIndex(KeyType.Secp256k1, publicKey);
 
-        // A call with 0 ETH value (e.g. a token transfer) should succeed since totalValue = 0 <= spendLimit = 0
         bytes memory calls = _createTokenTransferCall(BOB_ADDRESS, 1 * 10 ** 18);
-        _executeViaKeyTransparent(ALICE_ADDRESS, keyIndex, calls, privateKey, false);
+        _executeViaKeyTransparent(ALICE_ADDRESS, keyIndex, calls, privateKey, true);
 
-        // Verify the token transfer went through
         vm.prank(BOB_ADDRESS);
         uint256 bobBalance = tok.balance();
-        assertEq(bobBalance, 1 * 10 ** 18, "Bob should have received tokens via zero-value call");
+        assertEq(bobBalance, 0, "token transfer must not bypass a zero spend limit");
+    }
+
+    /// @notice Test that ERC-20 transfer amounts count against spendLimit
+    function test_erc20SessionLimit() public {
+        (bytes memory publicKey, uint256 privateKey) = _randomSecp256k1Key();
+
+        vm.prank(ALICE_ADDRESS);
+        ShieldedDelegationAccount(ALICE_ADDRESS).authorizeKey(
+            KeyType.Secp256k1, publicKey, uint40(block.timestamp + 24 hours), 10 ether
+        );
+
+        uint32 keyIndex = ShieldedDelegationAccount(ALICE_ADDRESS).getKeyIndex(KeyType.Secp256k1, publicKey);
+
+        {
+            bytes memory calls = _createTokenTransferCall(BOB_ADDRESS, 6 ether);
+            _executeViaKeyTransparent(ALICE_ADDRESS, keyIndex, calls, privateKey, false);
+            vm.prank(BOB_ADDRESS);
+            assertEq(tok.balance(), 6 ether, "first token transfer should succeed");
+        }
+
+        {
+            bytes memory calls = _createTokenTransferCall(BOB_ADDRESS, 5 ether);
+            _executeViaKeyTransparent(ALICE_ADDRESS, keyIndex, calls, privateKey, true);
+            vm.prank(BOB_ADDRESS);
+            assertEq(tok.balance(), 6 ether, "second token transfer should hit the spend limit");
+        }
+
+        {
+            bytes memory calls = _createTokenTransferCall(BOB_ADDRESS, 4 ether);
+            _executeViaKeyTransparent(ALICE_ADDRESS, keyIndex, calls, privateKey, false);
+            vm.prank(BOB_ADDRESS);
+            assertEq(tok.balance(), 10 ether, "transfer that fits remaining limit should succeed");
+        }
     }
 
     function test_receiveEth() public {

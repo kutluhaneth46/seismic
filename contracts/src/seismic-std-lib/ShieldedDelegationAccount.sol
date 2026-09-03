@@ -217,9 +217,10 @@ contract ShieldedDelegationAccount is IShieldedDelegationAccount, ReentrancyGuar
     // Helpers
     ////////////////////////////////////////////////////////////////////////
 
-    /// @notice Calculates the total spend of a transaction
-    /// @param data The data of the transaction
-    /// @return totalSpend The total spend of the transaction
+    /// @notice Calculates native value plus ERC-20 `transfer`/`transferFrom` amounts.
+    /// @dev Token amounts are summed in the token's own base units into the same
+    /// accumulator as ETH `value`. Session keys that must allow token movement
+    /// need a spend limit covering those units (see issue #116).
     function _calculateTotalSpend(bytes memory data) internal pure returns (uint256 totalSpend) {
         uint256 i = 0;
         uint256 len = data.length;
@@ -239,10 +240,44 @@ contract ShieldedDelegationAccount is IShieldedDelegationAccount, ReentrancyGuar
             }
             i += 32;
             require(i + dataLength <= len, "Invalid MultiSend data: exceeds length");
+            if (operation == 0) {
+                totalSpend += _tokenSpend(data, i, dataLength);
+            }
             i += dataLength;
         }
         require(i == len, "Invalid MultiSend data: unexpected trailing bytes");
         return totalSpend;
+    }
+
+    /// @dev ERC-20 `transfer`/`transferFrom` and SRC-20 shielded variants.
+    bytes4 private constant _ERC20_TRANSFER = 0xa9059cbb;
+    bytes4 private constant _ERC20_TRANSFER_FROM = 0x23b872dd;
+    bytes4 private constant _SRC20_TRANSFER = bytes4(keccak256("transfer(address,suint256)"));
+    bytes4 private constant _SRC20_TRANSFER_FROM = bytes4(keccak256("transferFrom(address,address,suint256)"));
+
+    function _tokenSpend(bytes memory data, uint256 offset, uint256 dataLength) private pure returns (uint256) {
+        if (dataLength < 68) return 0;
+        bytes4 selector;
+        assembly {
+            selector := mload(add(add(data, 32), offset))
+        }
+        if (selector == _ERC20_TRANSFER || selector == _SRC20_TRANSFER) {
+            uint256 amount;
+            assembly {
+                amount := mload(add(add(data, 32), add(offset, 36)))
+            }
+            return amount;
+        }
+        if (
+            (selector == _ERC20_TRANSFER_FROM || selector == _SRC20_TRANSFER_FROM) && dataLength >= 100
+        ) {
+            uint256 amount;
+            assembly {
+                amount := mload(add(add(data, 32), add(offset, 68)))
+            }
+            return amount;
+        }
+        return 0;
     }
 
     /// @notice Returns the nonce of a key
